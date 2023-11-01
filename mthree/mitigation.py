@@ -23,7 +23,7 @@ import numpy as np
 import scipy.linalg as la
 import scipy.sparse.linalg as spla
 import orjson
-from qiskit import execute
+from qiskit import execute, transpile
 from qiskit.providers import Backend, BackendV2, BackendV1
 
 from mthree.circuits import (
@@ -429,7 +429,15 @@ class M3Mitigation:
                 jobs.append(_job)
         else:
             for circs in circs_list:
-                _job = self.system.run(circs, shots=shots, rep_delay=self.rep_delay)
+                alternative_coupling=True
+                if (alternative_coupling==True):
+                    qubits_to_remove = [18, 8, 6]
+                    filtered_map = filtered_map = [list(item) for item in this.system.coupling_map if not any(qubit in item for qubit in qubits_to_remove)]
+                    basis_gates = this.system.operation_names
+                    circs_alt = [transpile(circ, coupling_map=filtered_map, basis_gates=basis_gates) for circ in circs]
+                    _job = self.system.run(circs_alt, shots=shots, rep_delay=self.rep_delay)
+                else:
+                    _job = self.system.run(circs, shots=shots, rep_delay=self.rep_delay)
                 jobs.append(_job)
 
         # Execute job and cal building in new theread.
