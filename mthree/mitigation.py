@@ -428,6 +428,7 @@ class M3Mitigation:
                 )
                 jobs.append(_job)
         else:
+            print("Version test")
             for circs in circs_list:
                 alternative_coupling=True
                 if (alternative_coupling==True):
