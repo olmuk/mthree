@@ -15,7 +15,6 @@
 import warnings
 import threading
 import datetime
-from math import ceil
 from time import perf_counter
 
 import psutil
@@ -44,11 +43,14 @@ from ._helpers import system_info
 class M3Mitigation:
     """Main M3 calibration class."""
 
-    def __init__(self, system=None, iter_threshold=4096):
+    def __init__(self, system=None, do_transpile=False, qubits_to_remove = [], test_prints = False, iter_threshold=4096):
         """Main M3 calibration class.
 
         Parameters:
             system (Backend): Target backend.
+            do_transpile: Transpile to backend basis gates
+            qubits_to_remove: qubits to be removed from the coupling map
+            test_prints: printing test comments
             iter_threshold (int): Sets the bitstring count at which iterative mode
                                   is turned on (assuming reasonable error rates).
 
@@ -60,6 +62,9 @@ class M3Mitigation:
             single_qubit_cals (list): 1Q calibration matrices
         """
         self.system = system
+        self.do_transpile=do_transpile
+        self.qubits_to_remove = qubits_to_remove
+        self.test_prints = test_prints
         self.system_info = system_info(system) if system else {}
         self.single_qubit_cals = None
         self.num_qubits = self.system_info["num_qubits"] if system else None
@@ -407,9 +412,9 @@ class M3Mitigation:
         else:
             raise M3Error("Unknown backend type")
         # Determine the number of jobs required
-        num_jobs = ceil(num_circs / max_circuits)
+        num_jobs = num_circs // max_circuits + 1
         # Get the slice length
-        circ_slice = ceil(num_circs / num_jobs)
+        circ_slice = num_circs // num_jobs + 1
         circs_list = [
             trans_qcs[kk * circ_slice: (kk + 1) * circ_slice]
             for kk in range(num_jobs - 1)
@@ -428,12 +433,12 @@ class M3Mitigation:
                 )
                 jobs.append(_job)
         else:
-            print("Version test")
             for circs in circs_list:
-                alternative_coupling=True
-                if (alternative_coupling==True):
+                if (self.do_transpile==True):
+                    if (self.test_prints == True):
+                        print(f"Mthree Transpiling")
                     qubits_to_remove = [18, 8, 6]
-                    filtered_map = filtered_map = [list(item) for item in self.system.coupling_map if not any(qubit in item for qubit in qubits_to_remove)]
+                    filtered_map = [list(item) for item in self.system.coupling_map if not any(qubit in item for qubit in self.qubits_to_remove)]
                     basis_gates = self.system.operation_names
                     circs_alt = [transpile(circ, coupling_map=filtered_map, basis_gates=basis_gates) for circ in circs]
                     _job = self.system.run(circs_alt, shots=shots, rep_delay=self.rep_delay)
@@ -865,16 +870,9 @@ def _job_thread(jobs, mit, qubits, num_cal_qubits, cal_strings):
             return
         else:
             _counts = res.get_counts()
-            # _counts can be a list or a dict (if only one circuit was executed within the job)
-            if isinstance(_counts, list):
-                counts.extend(_counts)
-            else:
-                counts.append(_counts)
+            counts.extend(_counts)
     # attach timestamp
     timestamp = res.date
-    # Timestamp can be None
-    if timestamp is None:
-        timestamp = datetime.datetime.now()
     # Needed since Aer result date is str but IBMQ job is datetime
     if isinstance(timestamp, datetime.datetime):
         timestamp = timestamp.isoformat()
