@@ -433,8 +433,8 @@ class M3Mitigation:
                 alternative_coupling=True
                 if (alternative_coupling==True):
                     qubits_to_remove = [18, 8, 6]
-                    filtered_map = filtered_map = [list(item) for item in this.system.coupling_map if not any(qubit in item for qubit in qubits_to_remove)]
-                    basis_gates = this.system.operation_names
+                    filtered_map = filtered_map = [list(item) for item in self.system.coupling_map if not any(qubit in item for qubit in qubits_to_remove)]
+                    basis_gates = self.system.operation_names
                     circs_alt = [transpile(circ, coupling_map=filtered_map, basis_gates=basis_gates) for circ in circs]
                     _job = self.system.run(circs_alt, shots=shots, rep_delay=self.rep_delay)
                 else:
